@@ -55,10 +55,9 @@ ADD docker/supervisord.conf /etc/supervisord.conf
 ADD	docker/collectd-config.conf.tpl /etc/collectd/configs/collectd-config.conf.tpl
 RUN pip install --upgrade pip && pip install envtpl
 
-ADD docker/start.sh /start.sh
+RUN mkdir /etc/service/myservice
+ADD docker/start.sh /etc/service/myservice/run
 ADD docker/foreground.sh /etc/apache2/foreground.sh
-RUN chmod 755 /start.sh && \
-	chmod 755 /etc/apache2/foreground.sh
+RUN chmod +x /etc/service/myservice/run && \
+	chmod +x /etc/apache2/foreground.sh
 
-# By default, start supervisord
-CMD ["/bin/bash", "/start.sh"]
