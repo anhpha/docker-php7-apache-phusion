@@ -20,16 +20,26 @@ ENV DEBIAN_FRONTEND noninteractive
 
 RUN echo "Asia/Ho_Chi_Minh" > /etc/timezone \
     dpkg-reconfigure -f noninteractive tzdata
+#copy default ini
+COPY ./docker/php.ini /usr/local/etc/php/
 # Install apache, and supplimentary programs. curl and lynx-cur are for debugging the container.
 RUN apt-get -y upgrade && \
-    apt-get -y install libmcrypt-dev mcrypt libcurl3 lynx-cur python-setuptools python-pip supervisor collectd && \
-    docker-php-ext-install -j$(nproc) mcrypt  curl gd intl tidy \
-    bz2 mbstring gettext zip  mysqli pdo pdo_mysql shmop && \
+    apt-get -y install libcurl4-openssl-dev curl libmcrypt-dev mcrypt \
+    libpng-dev lynx-cur python-setuptools python-pip supervisor collectd \
+    zlib1g-dev libicu-dev g++ libtidy-dev libbz2-dev \
+    libmagickwand-dev \
+        --no-install-recommends && \
     pecl install imagick && \
     docker-php-ext-enable imagick && \
-    docker-php-ext-enable rewrite && \
+    docker-php-ext-configure intl && \
+    docker-php-ext-install -j$(nproc) mcrypt  curl gd intl tidy \
+    bz2 mbstring gettext zip  mysqli pdo pdo_mysql shmop && \
     echo "ServerName localhost" >> /etc/apache2/apache2.conf && \
-    rm -r /var/lib/apt/lists/*
+    rm -r /var/lib/apt/lists/* && \
+	a2enmod rewrite
+#RUN for i in /etc/php/7.0/mods-available/*.ini;do phpenmod $(basename $i .ini); done && \
+#    a2enmod php7.0 && \
+#	a2enmod rewrite
     #&& apk del autoconf g++ libtool make \
     #&& rm -rf /tmp/* /var/cache/apk/*
 
@@ -45,12 +55,12 @@ RUN rm -r /var/www/html
 # Copy source directory to default apache root directory
 ADD ./docker/www /var/www/web
 RUN service apache2 restart && \
-    sed -ie 's/memory_limit\ =\ 128M/memory_limit\ =\ 2G/g' /etc/php/7.0/apache2/php.ini && \
-	sed -ie 's/\;date\.timezone\ =/date\.timezone\ =\ Asia\/Ho_Chi_Minh/g' /etc/php/7.0/apache2/php.ini && \
-	sed -ie 's/upload_max_filesize\ =\ 2M/upload_max_filesize\ =\ 200M/g' /etc/php/7.0/apache2/php.ini && \
-	sed -ie 's/post_max_size\ =\ 8M/post_max_size\ =\ 200M/g' /etc/php/7.0/apache2/php.ini && \
-	sed -i "s/short_open_tag = Off/short_open_tag = On/" /etc/php/7.0/apache2/php.ini && \
-	sed -i "s/error_reporting = .*$/error_reporting = E_ERROR | E_WARNING | E_PARSE/" /etc/php/7.0/apache2/php.ini
+    sed -ie 's/memory_limit\ =\ 128M/memory_limit\ =\ 2G/g' /usr/local/etc/php/php.ini && \
+	sed -ie 's/\;date\.timezone\ =/date\.timezone\ =\ Asia\/Ho_Chi_Minh/g' /usr/local/etc/php/php.ini && \
+	sed -ie 's/upload_max_filesize\ =\ 2M/upload_max_filesize\ =\ 200M/g' /usr/local/etc/php/php.ini && \
+	sed -ie 's/post_max_size\ =\ 8M/post_max_size\ =\ 200M/g' /usr/local/etc/php/php.ini && \
+	sed -i "s/short_open_tag = Off/short_open_tag = On/" /usr/local/etc/php/php.ini && \
+	sed -i "s/error_reporting = .*$/error_reporting = E_ERROR | E_WARNING | E_PARSE/" /usr/local/etc/php/php.ini
 
 # Manually set up the apache environment variables
 ENV "APACHE_RUN_USER"="www-data" "APACHE_RUN_GROUP"="www-data" \
@@ -63,9 +73,10 @@ ADD docker/supervisord.conf /etc/supervisord.conf
 ADD	docker/collectd-config.conf.tpl /etc/collectd/configs/collectd-config.conf.tpl
 RUN pip install --upgrade pip && pip install envtpl
 
-RUN mkdir /etc/service/myservice
-ADD docker/start.sh /etc/service/myservice/run
+RUN mkdir /etc/myservice
+ADD docker/start.sh /etc/myservice
 ADD docker/foreground.sh /etc/apache2/foreground.sh
-RUN chmod +x /etc/service/myservice/run && \
+RUN chmod +x /etc/myservice/start.sh && \
 	chmod +x /etc/apache2/foreground.sh
-
+#COPY docker/docker-php-entrypoint /usr/local/bin/
+CMD [ "/etc/myservice/start.sh" ]
