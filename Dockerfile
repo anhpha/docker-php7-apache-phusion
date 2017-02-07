@@ -51,9 +51,9 @@ ADD docker/apache-config.conf /etc/apache2/sites-enabled/000-default.conf
 ENV APACHE_LOG_DIR /var/log/apache2
 
 #remove default html folder
-RUN rm -r /var/www/html
+#RUN rm -r /var/www/html
 # Copy source directory to default apache root directory
-ADD ./docker/www /var/www/web
+ADD ./docker/www /var/www/html/web
 RUN service apache2 restart && \
     sed -ie 's/memory_limit\ =\ 128M/memory_limit\ =\ 2G/g' /usr/local/etc/php/php.ini && \
 	sed -ie 's/\;date\.timezone\ =/date\.timezone\ =\ Asia\/Ho_Chi_Minh/g' /usr/local/etc/php/php.ini && \
@@ -67,16 +67,16 @@ ENV "APACHE_RUN_USER"="www-data" "APACHE_RUN_GROUP"="www-data" \
 	"APACHE_LOG_DIR"="/var/log/apache2" "APACHE_LOCK_DIR"="/var/lock/apache2" \
 	"APACHE_PID_FILE"="/var/run/apache2.pid"
 
-EXPOSE 80
 
 ADD docker/supervisord.conf /etc/supervisord.conf
 ADD	docker/collectd-config.conf.tpl /etc/collectd/configs/collectd-config.conf.tpl
 RUN pip install --upgrade pip && pip install envtpl
 
-RUN mkdir /etc/myservice
-ADD docker/start.sh /etc/myservice
-ADD docker/foreground.sh /etc/apache2/foreground.sh
-RUN chmod +x /etc/myservice/start.sh && \
-	chmod +x /etc/apache2/foreground.sh
-#COPY docker/docker-php-entrypoint /usr/local/bin/
-CMD [ "/etc/myservice/start.sh" ]
+#RUN mkdir /etc/myservice
+COPY docker/start.sh /usr/local/bin
+COPY docker/foreground.sh /usr/local/bin
+
+RUN chmod +x /usr/local/bin/start.sh && \
+	chmod +x /usr/local/bin/foreground.sh
+
+CMD [ "start.sh" ]
